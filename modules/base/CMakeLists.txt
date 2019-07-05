@@ -82,10 +82,12 @@ set(SOURCE_FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/lightsource/cameralightsource.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/lightsource/scenegraphlightsource.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rendering/modelgeometry.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rendering/modelgeometrynew.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rendering/multimodelgeometry.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rendering/renderableboxgrid.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rendering/renderablecartesianaxes.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rendering/renderablemodel.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rendering/renderablemodelnew.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rendering/renderableplane.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rendering/renderableplaneimagelocal.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rendering/renderableplaneimageonline.cpp
