@@ -339,9 +339,9 @@ bool RenderableModelNew::loadModel(const std::string& file)
                 vTmp.normal[1] = meshPtr->mNormals[vertIt].y;
                 vTmp.normal[2] = meshPtr->mNormals[vertIt].z;
             } else {
-                vTmp.normal[0] = 0;
-                vTmp.normal[1] = 0;
-                vTmp.normal[2] = 0;
+                vTmp.normal[0] = 0.f;
+                vTmp.normal[1] = 0.f;
+                vTmp.normal[2] = 0.f;
             }
 
             // Texture Coordinates
