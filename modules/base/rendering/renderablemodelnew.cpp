@@ -51,6 +51,7 @@
 #include <ghoul/io/texture/texturereader.h>
 
 namespace {
+    constexpr const char* _loggerCat = "RenderableModelNew";
     constexpr const char* ProgramName = "ModelProgram";
     constexpr const char* KeyModelFile = "ModelFile";
 
@@ -285,6 +286,7 @@ bool RenderableModelNew::loadModel(const std::string& file)
         aiProcess_JoinIdenticalVertices);
 
     if (!scene) {
+        LERRORC("RenderableModelNew", fmt::format("Failed loading model file {}!", file.c_str()));
         return false; // TODO Throw exeption is possibly the OpenSpace way here
     }
 
@@ -292,7 +294,8 @@ bool RenderableModelNew::loadModel(const std::string& file)
     ghoul::filesystem::File modelFile(file);
 
     _geometries.reserve(scene->mNumMeshes);
-    _texturePaths.reserve(scene->mNumMeshes);
+    _textures.reserve(scene->mNumMeshes);
+
     for (unsigned int meshIt = 0; meshIt < scene->mNumMeshes; ++meshIt) {
         const struct aiMesh* meshPtr = scene->mMeshes[meshIt];
 
@@ -301,6 +304,7 @@ bool RenderableModelNew::loadModel(const std::string& file)
 
         if (scene->mMaterials[meshPtr->mMaterialIndex]->GetTexture(aiTextureType_DIFFUSE, 0, &aiTextPath) != AI_SUCCESS)
         {
+            LERRORC("RenderableModelNew", fmt::format("Unable to find texture for mesh no {} in model file {}!", meshIt, file.c_str()));
             continue;
         }
         std::string textPath(aiTextPath.C_Str());
@@ -310,6 +314,7 @@ bool RenderableModelNew::loadModel(const std::string& file)
 
         if (!texture)
         {
+            LERRORC("RenderableModelNew", fmt::format("Unable to load texture {} in model {}!", textPath.c_str(), file.c_str()));
             continue;
         }
         _textures.push_back(std::move(texture));
