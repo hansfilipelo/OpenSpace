@@ -46,7 +46,7 @@ public:
         GLfloat normal[3];
     };
 
-    ModelGeometryNew();
+    ModelGeometryNew(std::string propname);
     ModelGeometryNew(const ghoul::Dictionary& dictionary);
     virtual ~ModelGeometryNew() = default;
 

@@ -81,8 +81,8 @@ documentation:: Documentation ModelGeometryNew::Documentation() {
     );
 }*/
 
-ModelGeometryNew::ModelGeometryNew()
-    : properties::PropertyOwner({ "ModelGeometryNew" })
+ModelGeometryNew::ModelGeometryNew(std::string propname)
+    : properties::PropertyOwner({ std::move(propname) })
 {}
 
 double ModelGeometryNew::boundingRadius() const {
