@@ -322,6 +322,23 @@ RenderableModelNew::RenderableModelNew(const ghoul::Dictionary& dictionary)
     });
 }
 
+namespace {
+std::unique_ptr<ghoul::opengl::Texture> createDummyTexture()
+{
+    constexpr unsigned int dimensions = 2;
+    std::unique_ptr<ghoul::opengl::Texture> dummyTexture(new ghoul::opengl::Texture(glm::uvec3(dimensions, dimensions, 1)));
+    unsigned int dataLen = dummyTexture->numberOfChannels() * dimensions * dimensions;
+    unsigned char* data = (unsigned char*)malloc(dataLen);
+    for (unsigned int i = 0; i < dataLen; ++i)
+    {
+        data[i] = 128;
+    }
+    dummyTexture->setPixelData(data);
+
+    return dummyTexture;
+}
+}
+
 bool RenderableModelNew::loadModel(const std::string& file)
 {
     // Create an instance of the Importer class
@@ -353,7 +370,8 @@ bool RenderableModelNew::loadModel(const std::string& file)
 
         if (scene->mMaterials[meshPtr->mMaterialIndex]->GetTexture(aiTextureType_DIFFUSE, 0, &aiTextPath) != AI_SUCCESS)
         {
-            LERRORC("RenderableModelNew", fmt::format("Unable to find texture for mesh no {} in model file {}!", meshIt, file.c_str()));
+            LWARNINGC("RenderableModelNew", fmt::format("Unable to find texture for mesh no {} in model file {}!", meshIt, file.c_str()));
+            _textures.push_back(createDummyTexture());
             continue;
         }
         std::string textPath(aiTextPath.C_Str());
@@ -363,7 +381,8 @@ bool RenderableModelNew::loadModel(const std::string& file)
 
         if (!texture)
         {
-            LERRORC("RenderableModelNew", fmt::format("Unable to load texture {} in model {}!", textPath.c_str(), file.c_str()));
+            LWARNINGC("RenderableModelNew", fmt::format("Unable to load texture {} in model {}!", textPath.c_str(), file.c_str()));
+            _textures.push_back(createDummyTexture());
             continue;
         }
         _textures.push_back(std::move(texture));
@@ -392,6 +411,7 @@ bool RenderableModelNew::loadModel(const std::string& file)
     for ( auto const &it : oldTextures ) {
         const TextureDimensions& dims = it.first;
         const std::vector<std::size_t>& textIndexes = it.second;
+
         std::size_t imageDataSize = dims._width * dims._height * dims._dimensions * ghoul::opengl::Texture::numberOfChannels(dims._format);
 
         unsigned char* data = (unsigned char*)malloc(imageDataSize * textIndexes.size());
@@ -425,33 +445,38 @@ bool RenderableModelNew::loadModel(const std::string& file)
             case ghoul::opengl::Texture::Format::BGRA:
                 internalFormat = GL_BGRA;
                 break;
-            case ghoul::opengl::Texture::Format::DepthComponent:
+            case ghoul::opengl::Texture::Format::DepthComponent: // Should never happen since we are using diffuse textures
                 internalFormat = GL_DEPTH_COMPONENT;
-                return false;
+                break;
         }
 
         glm::uvec3 newDimensions;
-        newDimensions.x = dims._width * (unsigned int)textIndexes.size();
-        newDimensions.y = dims._height;
+        newDimensions.x = dims._width;
+        newDimensions.y = dims._height  * (unsigned int)textIndexes.size();
         newDimensions.z = dims._dimensions;
 
         newTextures.emplace_back(new ghoul::opengl::Texture(data, newDimensions, dims._format, internalFormat));
     }
     // Set new textures
+    LDEBUGC(
+            "RenderableModelNew",
+            fmt::format("Num text before: {}, after: {}", _textures.size(), newTextures.size())
+           );
+
     _textures = std::move(newTextures);
 
     // 3. Concatinate geometries
     for ( auto const &it : oldTextures ) {
-        const std::vector<std::size_t>& indexVec = it.second;
+        const std::vector<std::size_t>& meshPosVector = it.second;
 
         std::vector<modelgeometry::ModelGeometryNew::Vertex> vertices;
         std::vector<int> indices;
 
-        std::size_t numMeshes = indexVec.size();
+        std::size_t numMeshes = meshPosVector.size();
 
         for (std::size_t meshIt = 0; meshIt < numMeshes; ++meshIt){
 
-            std::size_t meshIndex = indexVec[meshIt];
+            std::size_t meshIndex = meshPosVector[meshIt];
             const struct aiMesh* meshPtr = scene->mMeshes[meshIndex];
 
             // Walk through each of the mesh's vertices
@@ -482,9 +507,11 @@ bool RenderableModelNew::loadModel(const std::string& file)
                 // Each vertex can have at most 8 different texture coordinates.
                 // We are using only the first one provided.
                 if (meshPtr->mTextureCoords[0]) {
-                    // Map texture coordinates on the Y-axis into the new larger texture
+                    // Map texture coordinates on the X-axis into the new larger texture
+                    //vTmp.tex[0] = (meshIt + meshPtr->mTextureCoords[0][vertIt].x) * (1.0f / (float)numMeshes);
                     vTmp.tex[0] = meshPtr->mTextureCoords[0][vertIt].x;
-                    vTmp.tex[1] = (meshIt + meshPtr->mTextureCoords[0][vertIt].y) * (1.0f / (float)numMeshes);
+                    //vTmp.tex[1] = meshPtr->mTextureCoords[0][vertIt].y;
+                    vTmp.tex[1] = ((float)meshIt + meshPtr->mTextureCoords[0][vertIt].y) * (1.0f / (float)numMeshes);
                 }
                 else {
                     vTmp.tex[0] = 0.f;
@@ -509,6 +536,7 @@ bool RenderableModelNew::loadModel(const std::string& file)
                 }
             }
         }
+
         // Create OpenSpace geometry from our vertices
         _geometries.emplace_back(new modelgeometry::ModelGeometryNew("ModelGeometryNew" + std::to_string(_geometries.size())));
         _geometries.back()->setModelData(std::move(vertices), std::move(indices));
