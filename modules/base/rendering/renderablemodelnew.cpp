@@ -457,12 +457,12 @@ bool RenderableModelNew::loadModel(const std::string& file)
 
         newTextures.emplace_back(new ghoul::opengl::Texture(data, newDimensions, dims._format, internalFormat));
     }
-    // Set new textures
+
     LDEBUGC(
             "RenderableModelNew",
-            fmt::format("Num text before: {}, after: {}", _textures.size(), newTextures.size())
+            fmt::format("Model draw calls reduced from {} to {}", _textures.size(), newTextures.size())
            );
-
+    // Set new textures
     _textures = std::move(newTextures);
 
     // 3. Concatinate geometries
@@ -471,8 +471,22 @@ bool RenderableModelNew::loadModel(const std::string& file)
 
         std::vector<modelgeometry::ModelGeometryNew::Vertex> vertices;
         std::vector<int> indices;
+        std::size_t nVertices = 0;
+        std::size_t nIndices = 0;
 
         std::size_t numMeshes = meshPosVector.size();
+
+        // Pre-compute n indexes and n vertices
+        for (std::size_t meshIt = 0; meshIt < numMeshes; ++meshIt){
+
+            std::size_t meshIndex = meshPosVector[meshIt];
+            const struct aiMesh* meshPtr = scene->mMeshes[meshIndex];
+
+            nVertices += meshPtr->mNumVertices;
+            nIndices += meshPtr->mNumFaces * 3;
+        }
+        vertices.reserve(nVertices);
+        indices.reserve(nIndices);
 
         for (std::size_t meshIt = 0; meshIt < numMeshes; ++meshIt){
 
@@ -480,7 +494,6 @@ bool RenderableModelNew::loadModel(const std::string& file)
             const struct aiMesh* meshPtr = scene->mMeshes[meshIndex];
 
             // Walk through each of the mesh's vertices
-            vertices.reserve(vertices.size() + meshPtr->mNumVertices); // TODO: Pre-compute and allocate once
             std::size_t indexOffset = vertices.size();
 
             for (unsigned int vertIt = 0; vertIt < meshPtr->mNumVertices; vertIt++) {
@@ -507,10 +520,8 @@ bool RenderableModelNew::loadModel(const std::string& file)
                 // Each vertex can have at most 8 different texture coordinates.
                 // We are using only the first one provided.
                 if (meshPtr->mTextureCoords[0]) {
-                    // Map texture coordinates on the X-axis into the new larger texture
-                    //vTmp.tex[0] = (meshIt + meshPtr->mTextureCoords[0][vertIt].x) * (1.0f / (float)numMeshes);
+                    // Map texture coordinates on the Y-axis into the new larger texture
                     vTmp.tex[0] = meshPtr->mTextureCoords[0][vertIt].x;
-                    //vTmp.tex[1] = meshPtr->mTextureCoords[0][vertIt].y;
                     vTmp.tex[1] = ((float)meshIt + meshPtr->mTextureCoords[0][vertIt].y) * (1.0f / (float)numMeshes);
                 }
                 else {
@@ -522,8 +533,6 @@ bool RenderableModelNew::loadModel(const std::string& file)
             }
 
             // Walking through the mesh faces and get the vertexes indices
-            indices.reserve(indices.size() + meshPtr->mNumFaces * 3); // TODO: Pre-compute and allocate once
-
             for (unsigned int nf = 0; nf < meshPtr->mNumFaces; ++nf) {
                 const struct aiFace* face = &meshPtr->mFaces[nf];
 
