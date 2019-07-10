@@ -428,48 +428,54 @@ bool RenderableModelNew::loadModel(const std::string& file)
 
             std::size_t imageDataSize = dims._width * dims._height * dims._dimensions * ghoul::opengl::Texture::numberOfChannels(dims._format);
 
-            unsigned char* data = (unsigned char*)malloc(imageDataSize * textIndexes.size());
+            if (textIndexes.size() > 1) {
+                unsigned char* data = (unsigned char*)malloc(imageDataSize * textIndexes.size());
 
-            // Copy texture data
-            for (std::size_t textNum = 0; textNum < textIndexes.size(); ++textNum)
-            {
-                std::size_t index = textIndexes[textNum];
-                const ghoul::opengl::Texture* texture = _textures[index].get();
+                // Copy texture data
+                for (std::size_t textNum = 0; textNum < textIndexes.size(); ++textNum)
+                {
+                    std::size_t index = textIndexes[textNum];
+                    const ghoul::opengl::Texture* texture = _textures[index].get();
 
-                memcpy(&data[imageDataSize * textNum], texture->pixelData(), imageDataSize);
+                    memcpy(&data[imageDataSize * textNum], texture->pixelData(), imageDataSize);
+                }
+
+                GLenum internalFormat = GL_RGB;
+                switch (dims._format) {
+                    case ghoul::opengl::Texture::Format::Red:
+                        internalFormat = GL_RED;
+                        break;
+                    case ghoul::opengl::Texture::Format::RG:
+                        internalFormat = GL_RG;
+                        break;
+                    case ghoul::opengl::Texture::Format::RGB:
+                        internalFormat = GL_RGB;
+                        break;
+                    case ghoul::opengl::Texture::Format::RGBA:
+                        internalFormat = GL_RGBA;
+                        break;
+                    case ghoul::opengl::Texture::Format::BGR:
+                        internalFormat = GL_BGR;
+                        break;
+                    case ghoul::opengl::Texture::Format::BGRA:
+                        internalFormat = GL_BGRA;
+                        break;
+                    case ghoul::opengl::Texture::Format::DepthComponent: // Should never happen since we are using diffuse textures
+                        internalFormat = GL_DEPTH_COMPONENT;
+                        break;
+                }
+
+                glm::uvec3 newDimensions;
+                newDimensions.x = dims._width;
+                newDimensions.y = dims._height  * (unsigned int)textIndexes.size();
+                newDimensions.z = dims._dimensions;
+
+                newTextures.emplace_back(new ghoul::opengl::Texture(data, newDimensions, dims._format, internalFormat));
             }
-
-            GLenum internalFormat = GL_RGB;
-            switch (dims._format) {
-            case ghoul::opengl::Texture::Format::Red:
-                internalFormat = GL_RED;
-                break;
-            case ghoul::opengl::Texture::Format::RG:
-                internalFormat = GL_RG;
-                break;
-            case ghoul::opengl::Texture::Format::RGB:
-                internalFormat = GL_RGB;
-                break;
-            case ghoul::opengl::Texture::Format::RGBA:
-                internalFormat = GL_RGBA;
-                break;
-            case ghoul::opengl::Texture::Format::BGR:
-                internalFormat = GL_BGR;
-                break;
-            case ghoul::opengl::Texture::Format::BGRA:
-                internalFormat = GL_BGRA;
-                break;
-            case ghoul::opengl::Texture::Format::DepthComponent: // Should never happen since we are using diffuse textures
-                internalFormat = GL_DEPTH_COMPONENT;
-                break;
+            else { // Only one texture of these dimensions, no need to copy it
+                std::size_t index = textIndexes[0];
+                newTextures.push_back(std::move(_textures[index]));
             }
-
-            glm::uvec3 newDimensions;
-            newDimensions.x = dims._width;
-            newDimensions.y = dims._height  * (unsigned int)textIndexes.size();
-            newDimensions.z = dims._dimensions;
-
-            newTextures.emplace_back(new ghoul::opengl::Texture(data, newDimensions, dims._format, internalFormat));
         }
     }
 
